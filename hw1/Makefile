@@ -12,7 +12,7 @@ tEXt: png-tools.h png-tools.c png-tEXt.c
 test: png-tools.h png-tools.c test_project1_phase1.c
 	clang -o run_tests png-tools.c test_project1_phase1.c -lcriterion
 
-test2: png-tools.h png-tools.c test_project2_phase1.c
+test2: png-tools.h png-tools.c test_project1_phase2.c
 	clang -o run_tests2 png-tools.c test_project1_phase2.c -lcriterion
 
 clean:
