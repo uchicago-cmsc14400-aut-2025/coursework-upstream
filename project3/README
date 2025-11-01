@@ -1,0 +1,134 @@
+README
+Project 3A
+CMSC 14400
+Autumn 2024
+
+=== PROJECT 3A IS DUE SUNDAY, NOV 9, 2025 AT 11:59pm ===
+
+Project 3A consists of implementing operations in a simple
+computer-in-software designed as shown in project3a.h. Before writing
+any code, it's a good idea to read the data structure definitions
+carefully to see how the machine is constructed in software.
+
+The Project 3A machine has an 8-bit address space. As such, it has 256
+bytes of memory. There are 8 1-byte registers on the CPU. The 3A
+machine has a cache of four sets of two lines each. Each cache line
+has a valid bit, a 4-bit tag, and a 4-byte block. In a given address,
+the first four bits (the more significant four) are the tag bits, the
+next two bits are the set bits, and the last two bits (the least
+significant) are the block offset bits.
+
+=== MACHINE INSTRUCTIONS
+
+The two instructions that are supported by the 3A machine are
+
+  movb op1 op2
+
+and
+
+  addb op1 op2.
+
+Each operand (op1, op2) is either an immediate (a constant), a
+register, or an address in memory. Immediates are decimal numbers with
+a $ prefix: they are written $0, $1, $2, etc. Registers are written
+r0, r1, and so on up to r7. Addresses in memory are decimal numbers on
+the interval [0,255] without any prefix.
+
+For example, the instruction "movb r4 122" means "move the contents of
+register 4 to memory location 122."
+
+The instructions only work on certain operand combinations, as follows:
+
+movb immediate immediate -- this doesn't make sense and is not supported
+movb immediate register  -- supported
+movb immediate memory    -- supported
+movb register  immediate -- (nonsense) not supported
+movb register  register  -- supported
+movb register  memory    -- supported
+movb memory    immediate -- (nonsense) not supported
+movb memory    register  -- supported
+movb memory    memory    -- not supported (cannot be done directly)
+
+For addb, the same combinations are either supported or not supported
+as indicated above. The addb instruction is a += style addition such
+that the second operand is increased by the given source. For example,
+the instruction "addb $25 r0" should result in the value in r0 having
+been increased by (decimal) 25.
+
+Any arithmetic done in the 3A machine (and this pertains to the
+magical instructions below as well) should be modulo 255; bytes are
+all you have, so any computational result must fit in a byte.
+
+Any instruction that reads from memory should look in cache first. If
+the data is not in the cache, load the four bytes around the desired
+byte into a cache line and then read from the cache. The phrase "the
+four bytes around the desired byte" means the four bytes whose
+addresses are 0, 1, 2, and 3 modulo 4 containing the byte of
+interest. For example, for address 10, these are addresses 8, 9, 10
+and 11. This is the very same group of four addresses for bytes 8, 9,
+and 11 as well.
+
+When drawing a four-byte block from memory into the cache, populate an
+empty line if there is one; otherwise, evict a cache line of your
+choice (there is no specified eviction policy) and replace it with the
+fresh data.
+
+Instructions that write to memory should write to memory and also any
+cached version of that part of memory. Cache data and memory data must
+be kept consistent. There should never by other than a momentary
+difference between cache data and memory data; they must remain
+consistent. This kind of writing regime is known as "write-through"
+(as opposed to "write-back", where the cache is allowed to get out of
+sync with memory).
+
+In the implementation of movb and addb, your code should track how
+many clock cycles have elapsed along the way. Operations that involve
+only moving data between registers require only one clock cycle. If
+registers and the cache are involved, but not memory, five cycles are
+needed. If memory is involved, two hundred cycles are
+required. Therefore, after each operation, make sure to increase the
+machine's clock cycle counter by 1, 5, or 200 accordingly.
+
+If the user gives a nonsense instruction like "movb $5 $6", your
+program should simply ignore it (and print a message if you are so
+inclined).
+
+=== MAGICAL INSTRUCTIONS
+
+The following magical instructions populate memory with interesting
+values to assist in testing. Because they are magical, they cost
+nothing on the clock. The three instructions are .fill, .set, and
+.scale.
+
+The .fill instruction takes two operands: a memory address and an
+immediate. It should fill memory starting at the given address with
+the given immediate, increasing by 1 per memory location and going all
+the way up to memory address 255.
+
+The .set instruction takes two operands: a memory address and an
+immediate. It should fill memory starting at the given address with
+the given immediate up to address 255. It does not increase like
+.fill; it writes the same value everywhere.
+
+The .scale instruction takes two operands: a memory address and an
+immediate, a scalar. It should multiply every item in memory, starting
+at the given address and up to 255, by the scalar.
+
+If the user types a nonsense magical instruction like ".fill $5 $6",
+your program should simply ignore it (and print a message if you are
+so inclined).
+
+=== RESETTING THE MACHINE
+
+The zero_machine function should zero out the whole machine, including
+the clock cycle counter, for an entirely fresh start.
+
+=== HELPER FUNCTIONS
+
+Implementation of Project 3A can be made much easier and more pleasant
+given a good selection of well-chosen helper functions. You don't need
+to design them all right from the outset; try writing some code and
+see what parts of it you find yourself needing repeatedly. To
+familiarize yourself with the landscape of this project, we suggest
+you start by writing zero_machine and implementing the magical
+instructions.
