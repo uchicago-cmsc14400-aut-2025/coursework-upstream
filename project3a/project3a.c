@@ -228,15 +228,15 @@ void show_cache(struct machine *m)
     for (int j=0; j<2; j++) {
       struct cache_line line = m->cache.sets[i].lines[j];
       if (line.valid) {
-	printf(" (%d) valid(1) tag(0X%X) [0X%02X 0X%02X 0X%02X 0X%02X]\n",
-	       j,
-	       line.tag,
-	       line.block[0],
-	       line.block[1],
-	       line.block[2],
-	       line.block[3]);
+        printf(" (%d) valid(1) tag(0X%X) [0X%02X 0X%02X 0X%02X 0X%02X]\n",
+               j,
+               line.tag,
+               line.block[0],
+               line.block[1],
+               line.block[2],
+               line.block[3]);
       } else {
-	printf(" (%d) valid(0) ...\n",j);
+        printf(" (%d) valid(0) ...\n",j);
       }
     }
   }
@@ -277,30 +277,30 @@ int main() {
     if (fgets(buffer, sizeof(buffer), stdin) != NULL) {
       char *t = trim(buffer);
       if (!strcmp(".q",t)) {
-	printf("Bye!\n");
-	return 0;
+        printf("Bye!\n");
+        return 0;
       } else if (!strcmp(".m",t)) {
-	show_memory(&m);
-	putchar('\n');
+        show_memory(&m);
+        putchar('\n');
       } else if (!strcmp(".h",t)) {
-	help();
+        help();
       } else if (!strcmp(".r",t)) {
-	show_registers(&m);
-	putchar('\n');
+        show_registers(&m);
+        putchar('\n');
       } else if (!strcmp(".c",t)) {
-	show_cache(&m);
-	putchar('\n');
+        show_cache(&m);
+        putchar('\n');
       } else if (!strcmp(".z",t)) {
-	zero_machine(&m);
-	putchar('\n');
+        zero_machine(&m);
+        putchar('\n');
       } else {
-	struct instruction inst;
-	if (parse_instruction(t,&inst)) {
-	  //print_instruction(inst);
-	  apply_instruction(&m,inst);
-	} else {
-	  printf("unrecognized command\n");
-	}
+        struct instruction inst;
+        if (parse_instruction(t,&inst)) {
+          //print_instruction(inst);
+          apply_instruction(&m,inst);
+        } else {
+          printf("unrecognized command\n");
+        }
       }
     }
   }
