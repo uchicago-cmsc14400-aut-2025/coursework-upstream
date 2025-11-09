@@ -56,7 +56,7 @@ the instruction "addb $25 r0" should result in the value in r0 having
 been increased by (decimal) 25.
 
 Any arithmetic done in the 3A machine (and this pertains to the
-magical instructions below as well) should be modulo 255; bytes are
+magical instructions below as well) should be modulo 256; bytes are
 all you have, so any computational result must fit in a byte.
 
 Any instruction that reads from memory should look in cache first. If
