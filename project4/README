@@ -121,7 +121,7 @@ extending all the way to 65535.
 If the _next_ allocation fits in the intermediate free block at 2056
 (i.e., is 72 bytes or less), the allocation should be at 2056. If the
 next allocation is too big for that block, it should be allocated in
-the large free block at 2128 (assuming it fits). If an object is
+the large free block at 2272 (assuming it fits). If an object is
 altogether too big to be allocated anywhere, `p4malloc` should return
 NULL.
 
