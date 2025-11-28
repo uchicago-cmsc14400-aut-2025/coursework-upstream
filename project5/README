@@ -1,0 +1,122 @@
+README
+Project 5
+CMSC 14400
+Autumn 2025
+
+=== PROJECT 5 IS DUE FRIDAY, DECEMBER 5, 2025 AT 11:59pm ===
+
+Project 5 is an exercise in concurrent programming featuring forked
+processes and signal handlers. These mechanisms are new at this point
+in the 140s sequence. The most similar programming you may have seen
+is the pthread_create/pthread_join exercises done in certain
+iterations of CS143.
+
+Concurrency is an important component of systems programming; if you
+go on to study operating systems, networks, databases, and other
+systems topics, you will certainly encounter it again.
+
+Project 5 doesn't entail writing much code. We know you are facing the
+end of the quarter and we have scaled this project modestly as a
+result.
+
+The main demonstration of this project is to give you a chance to
+observe many downloads taking place "at the same time" (_overlapping_
+in time, more precisely); without concurrency, the downloads would
+have to take place in sequence (and run much more slowly as a result).
+
+=== THE SLOW IMAGE SERVER ===
+
+For project 5, we have set up a slow image server at
+turtle.cs.uchicago.edu. You can request images numbered 0 through 99
+inclusive by visiting a URL of the form
+
+http://turtle.cs.uchicago.edu:8000/img/23
+
+(using any number from 0 to 99 in place of 23). You can try this in a
+browser if you like, but be prepared to wait.
+
+The slow image server works by delaying for a random number of
+seconds, then responding with an image that is customized according to
+its number (you will be able to tell by looking at the image whether
+you've received the right one). The artificial slowness of the server
+will enable you to observe concurrency in the running program.
+
+=== P5 ===
+
+The project 5 program (please write it in the file `project5.c`),
+which compiles to an executable named `p5`, should behave as follows:
+
++ The program should have two signal handlers installed: one for
+  SIGUSR1, and one for SIGINT.
+
++ When the program starts running, it should print its pid to stdout
+  (to be used in kill commands to send signals).
+
++ After printing its pid, the program should enter an infinite loop,
+  the entire body of which is the system call pause(). In this loop,
+  the program will wait to be interrupted by a signal, at which point
+  it will handle the signal and go back to waiting.
+
+The signal handlers for SIGUSR1 and SIGINT are called `download` and
+`shutdown`, respectively. They should behave as follows.
+
+download:
+
++ The download signal handler should, on its first SIGUSR1, download
+  image 0 from the turtle server, then image 1 on the next SIGUSR1,
+  then image 2, and so on until image 99. Once all 100 images have
+  been downloaded, the handler should print a message about the
+  maximum having been reached (the wording is up to you) and return.
+
++ Upon receiving a SIGUSR1, assuming there are still images to
+  download, the program should call fork() to spawn a child
+  process. The _child_ process should download the next image with the
+  following command:
+
+  curl -o img/imgNN-CHILD_PID.png http://turtle.cs.uchicago.edu:8000/img/N
+
+  In the text of this command, NN and CHILD_PID are not to be taken
+  literally: they should be the number of the image and the child's
+  process ID, respectively. For example, if the image number were 6
+  and the process ID were 99233, this instruction should be
+
+  curl -o img/img06-99233.png http://turtle.cs.uchicago.edu:8000/img/6
+
+  (Please note that the filename has a leading 0 before the 6. The
+  filenames should all contain a 2-digit number, meaning a leading 0
+  for images 0 through 9. The URLs may have a leading 0, but will work
+  with or without it.)
+
+  To execute a particular curl command, build a string like the one
+  above, and call `system` (in the child process) with it as an
+  argument. This will initiate a download. Because forked processes
+  run concurrently, even though the download will be (artificially)
+  slow, its delay will not prevent the program from proceeding on to
+  other downloads.
+
++ Use the top-level variable i to manage which image is the next image.
+
+shutdown:
+
++ The shutdown signal handler should reap all child processes using
+  waitpid. The text's Figure 8.18 shows how to reap all outstanding
+  children. Once all children have been reaped, call exit(0) to
+  terminate the program.
+
+To send signals to your program, open another terminal and write
+
+$ kill -s SIGUSR1 P5_PID
+
+or
+
+$ kill -s SIGINT P5_PID
+
+where P5_PID is whatever the pid of the running `p5` program is.
+
+The behavior of your program in response to any signal other than
+SIGUSR1 and SIGINT is undefined as far as we are concerned.
+
+To terminate the p5 program immediately, send a kill signal to it with
+
+$ kill -s SIGKILL P5_PID
+
