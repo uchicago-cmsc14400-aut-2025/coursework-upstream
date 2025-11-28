@@ -62,10 +62,10 @@ void apply_movb(struct machine *m, struct operand src, struct operand dst);
 
 void apply_addb(struct machine *m, struct operand src, struct operand dst);
 
-void apply_dot_fill(struct machine *m, struct operand src, struct operand dst);
+void do_fill(struct machine *m, struct operand src, struct operand dst);
 
-void apply_dot_set(struct machine *m, struct operand src, struct operand dst);
+void do_set(struct machine *m, struct operand src, struct operand dst);
 
-void apply_dot_scale(struct machine *m, struct operand src, struct operand dst);
+void do_scale(struct machine *m, struct operand src, struct operand dst);
 
 #endif

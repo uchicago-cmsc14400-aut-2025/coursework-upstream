@@ -1,0 +1,216 @@
+README
+Project 4
+CMSC 14400
+Autumn 2025
+
+====== PROJECT 4 IS DUE MONDAY, DEC 1, 2025 AT 11:59pm ======
+
+In Project 4, you will implement versions of malloc and free, taking
+the role of the memory manager we are all familiar with from C
+programming. Project 4 involves managing a heap-within-the-heap with
+its own operations `p4malloc` and `p4free`; these operations can
+interoperate with ordinary C code such that you will be able either to
+`malloc` an object and use it as usual, or alternatively `p4malloc` an
+object and use it in an ordinary C program like any other heap
+object. Furthermore, the Project 4 memory manager offers garbage
+collection, such that objects in memory that are no longer "live" are
+detected and freed.
+
+The Project 4 heap (aka the "p4heap") consists of 2^16=65536 bytes,
+some of which is used to keep track of allocations, and most of which
+is available for dynamic allocations. We refer to the part of the
+p4heap where objects are allocated and freed as "the dynamic heap."
+
+The p4heap is structured as follows:
+
+- bytes 0-127 are restricted space; bytes are all zero and may not be
+  changed,
+
+- bytes 128-1023 are scratch space, not available for allocation but
+  otherwise having no particular purpose,
+
+- bytes 1024-2047 are reserved for the allocation list (more below),
+  and
+
+- bytes 2048-65535 ("the dynamic heap") are available for allocations.
+
+Note that the p4heap lives inside the larger heap of the running
+application. We refer to the enclosing heap (the "real" heap) as "the
+application heap."
+
+------- THE ALLOCATION LIST ------
+
+The allocation list (bytes 1024-2047) contains "allocation records" in
+order; each allocation record occupies 5 bytes. There is no allocation
+record `struct` in our data definitions. This is so the allocation
+records can be packed together 5 bytes at a time without padding.
+
+Each allocation record consists of
+
+- a big-endian two-byte _offset_, the start of an allocated object,
+- a big-endian two-byte object _size_, and
+- one byte giving the _number of pointers_ in the object (for garbage
+  collection).
+
+The offset is calculated from the base of the whole p4heap. Given the
+size of the p4heap, only two bytes are needed. The smallest possible
+offset for the dynamic heap, given the constraints on how the heap is
+structured, is 2048. The size of the object is how many bytes the
+object occupies. Two bytes also suffices for size. Object sizes in the
+p4heap must never be less than 8 bytes and must always be a multiple
+of 8, for the purposes of alignment. Note that, as such, the smallest
+possible allocation in the p4heap, even for one char, would be 8
+bytes. 9 chars require a 16-byte allocation. Because of the 8-byte
+minimum object size, the highest possible offset value in any
+allocation record is 65536-8=65528.
+
+The "number of pointers" byte, the last part of an allocation record,
+is discussed in the context of garbage collection below.
+
+The allocation list must be maintained in ascending order of
+offset. This means insertions into and deletions from the allocation
+list will involve moving bytes left and right to make space and pack
+accordingly. The allocation list's end is marked by two consecutive
+zero bytes. A two-byte zero is not a valid offset for the dynamic
+heap, so there is no ambiguity about what these two bytes mean. Note
+the allocation list is like a C string in that it includes its own
+termination marker.
+
+Without any allocations, the allocation list consists entirely of
+zeros. Let's say the very first allocation in a particular run is an
+80-byte character array at the beginning of the dynamic heap. After
+that allocation, the allocation list would look like this, where [0]
+indicates a single zero byte and [n:2] means the number n in two
+bytes, big endian:
+
+{[2048:2] [80:2] [0]} [0] [0] ...
+
+The curly braces in this notation surround a five-byte allocation
+record, and the bytes [0] [0] mark the end of the allocation list.
+
+Let's say the next allocation is a 144-byte character array and that
+it is allocated immediately after the first object. Then the
+allocation list looks like
+
+{[2048:2] [80:2] [0]} {[2128:2] [144:2] [0]} [0] [0] ....
+
+Next, let's say the first object is freed. Then the allocation list
+becomes
+
+{[2128:2] [144:2] [0]} [0] [0] ....
+
+Bytes had to be shifted to the left to pack the allocation list
+together; there are no gaps allowed between allocation records in the
+allocation list. Note there is now a free block in the heap starting
+at byte 2048 and extending to byte 2127 inclusive. We are not at
+liberty to compact the objects in the dynamic heap (squeeze them
+together and/or relocate them towards lower addresses) under the
+assumption that there is running code still pointing to the object at
+offset 2128, and we don't want to break it.
+
+If the next allocation is for 8 bytes, we get
+
+{[2048:2] [8:2] [0]} {[2128:2] [144:2] [0]} [0] [0] ....
+
+Note that the new allocation entailed an insertion into the allocation
+list; bytes had to be moved to the right to make room for it. There is
+now an _intermediate_ free block spanning from 2056 to 2127 inclusive,
+as well as a very large free block starting at 2128+144=2272 and
+extending all the way to 65535.
+
+If the _next_ allocation fits in the intermediate free block at 2056
+(i.e., is 72 bytes or less), the allocation should be at 2056. If the
+next allocation is too big for that block, it should be allocated in
+the large free block at 2272 (assuming it fits). If an object is
+altogether too big to be allocated anywhere, `p4malloc` should return
+NULL.
+
+------ POINTERS-FIRST OBJECTS ------
+
+A requirement of the Project 4 memory manager is that, for garbage
+collection, any pointers that appear in an allocated object must be
+situated contiguously together at the beginning of the object. The P4
+allocator is happy with the following linked list struct:
+
+  struct a {
+    struct a *next;
+    int data;
+  };
+
+but not with this one:
+
+  struct b {
+    int data;
+    struct b *next;
+  };
+
+(because the pointer isn't first).
+
+Since there is no way for the allocator to "know" whether pointers are
+actually concentrated at the beginning of an object, the
+pointers-first rule is enforced on the honor system. You will still be
+able to allocate, use, and free objects that don't meet the
+pointer-first criterion, but any such objects will not work with our
+garbage collector.
+
+------ GARBAGE COLLECTION ------
+
+Garbage collection is a service provided by high-level languages (Java
+and Python, for example) that relieves programmers of the burden of
+manually calling `free` on objects no longer needed. Plain C
+programming entails manual memory management without garbage
+collection (as every CS143 alum knows from experience).
+
+The function `p4gc` should perform garbage collection on the
+p4heap. It is given a list of live roots. (Ordinarily, the memory
+management system would keep track of which objects are live, but, for
+simplicity, the p4 memory manager doesn't do that.) The p4 garbage
+collector should find all the _live_ objects that are transitively
+connected, by pointers, to one or more of the live roots. An object is
+live if it is (transitively) pointed to by a live object. An object is
+not live just because it points to a live object; it must be pointed
+to by one. Objects that are not live are _garbage_ and should be
+freed by the garbage collector.
+
+This is a graph traversal problem and you can use any suitable graph
+traversal algorithm as you see fit. We do not provide specific
+guidance on which method you use. Since you have recorded, in the
+allocation list, how many pointers are in each object, and since all
+pointers must appear (by convention) at the front of each object, you
+can use them as graph edges to calculate which objects are live and
+which are garbage. Please note that objects contain actual pointers
+(in the application heap space), not offsets into the p4heap (see
+"helper functions" below).
+
+If you would like to supplement the p4 header file with any data
+definitions and/or operation headers to support the graph traversal
+(or, for that matter, any other component of this exercise), please
+do; just don't delete or alter any of the definitions given (which
+would break our testing infrastructure).
+
+------ HELPER FUNCTIONS ------
+
+There are various helper function suites that, if implemented, will
+make this a much easier programming task than otherwise. We choose not
+to dictate helper function designs to you so you can make your own
+discoveries (and possibly better what we came up with).
+
+Here is one suggestion for helpers among many possible
+suggestions. This code will often need to convert between _offsets_ in
+the p4heap, which are small numbers internally keeping track of where
+objects are located, and _addresses_ in memory, which are full-fledged
+pointers and how code at large communicates with `p4malloc` and
+`p4free`. Consider writing helper functions to convert from an offset
+to an address (i.e., from a uint16_t to a void*) and the other way
+around.
+
+------ SCRATCH SPACE ------
+
+For an extra challenge (not for extra credit), you could try to
+complete this assignment as much as possible within the p4heap, using
+its scratch space (which is otherwise not doing anything) for
+storage. For example: throughout these operations, from time to time,
+you will need to know the number of objects currently allocated in the
+p4heap. To avoid recomputing this value, you could use an otherwise
+idle byte in the p4heap scratch space and store the number there. Just
+be sure to keep that byte updated with a current count if you do.
